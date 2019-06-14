@@ -5,6 +5,7 @@
 ############################
 
 library(data.table)
+library(lubridate)
 
 # auxiliary functions
 any_values = function(x, values) as.numeric(any(x %in% values, na.rm = TRUE))
@@ -459,6 +460,48 @@ table(bs$crime)
 setnames(bs, 'del_5_1', 'previous_sentences')
 bs[is.na(previous_sentences) & del_4 == 0, previous_sentences := 0]
 
+# time in prison (months)
+table(bs$del_6_1) # months
+table(bs$del_6_2) # years
+table(bs$del_6_3) # days
+
+bs[, del_6_2 := del_6_2 * 12]
+bs[, del_6_3 := del_6_3 / 30.5]
+
+bs[, total_previous_months_in_prison := apply(.SD, 1, sum, na.rm=TRUE),
+    .SDcols = paste0('del_6_', 1:3)]
+
+table(bs$total_previous_months_in_prison)
+
+# add current time
+bs[, current_time_in_prison := interval(ymd(reg_fprivacion), ymd(reg_fegreso)) %/% months(1)]
+bs[, total_months_in_prison := apply(.SD, 1, sum, na.rm=TRUE),
+    .SDcols = c('total_previous_months_in_prison', 'current_time_in_prison')]
+
+table(bs$reg_fegreso)
+table(bs$reg_fprivacion)
+
+# report date of prison
+# remove missing using mid day and month
+bs[is.na(hdv_4_1), hdv_4_1 := 15]
+bs[is.na(hdv_4_2), hdv_4_2 := 7]
+
+bs[, report_date_prison := paste0(hdv_4_1, '-', hdv_4_2, '-', hdv_4_3)]
+
+bs[total_months_in_prison == 0, .(reg_folio, total_months_in_prison, del_6_1, del_6_2, del_6_3,
+                                  reg_fecha, reg_fprivacion, reg_fegreso, hdv_4_1, hdv_4_2, hdv_4_3,
+                                  report_date_prison)]
+
+bs[total_months_in_prison == 0, current_time_in_prison := interval(dmy(report_date_prison), ymd(reg_fecha)) %/% months(1)]
+bs[total_months_in_prison == 0, total_months_in_prison := apply(.SD, 1, sum, na.rm=TRUE),
+    .SDcols = c('total_previous_months_in_prison', 'current_time_in_prison')]
+
+bs[total_months_in_prison == 0, .(reg_folio, total_months_in_prison, del_6_1, del_6_2, del_6_3,
+                                  reg_fecha, reg_fprivacion, reg_fegreso, hdv_4_1, hdv_4_2, hdv_4_3,
+                                  report_date_prison)]
+
+hist(bs$total_months_in_prison)
+
 # mental health
 bs[, mental_health := scale(apply(.SD, 1, mean, na.rm = TRUE)),
     .SDcols = names(bs) %like% '^sal_31']
@@ -476,6 +519,8 @@ bs[, del_11_2 := del_11_2 / 12]
 bs[, del_11_3 := del_11_3 / 365.25]
 bs[, sentence_length := apply(.SD, 1, sum, na.rm = TRUE),
     .SDcols = paste0('del_11_', 1:3)]
+
+bs[sentence_length == 0, sentence_length := NA]
 
 # drug abuse and dependence
 # most frequent drug
@@ -529,7 +574,7 @@ bs = bs[, .(reg_folio, class, age, edu, only_primary, any_previous_work,
     nchildren, any_children, crime, early_crime,
     self_efficacy, desire_change, previous_partner,
     previous_sentences, mental_health, drug_depabuse,
-    sentence_length, family_conflict
+    sentence_length, total_months_in_prison, family_conflict
     )]
 
 # center variables

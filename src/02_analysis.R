@@ -39,12 +39,13 @@ mdf = df[, .(reg_folio, time, money_family, living_with_family,
               nchildren, previous_partner,
               crime, any_previous_work,
               self_efficacy, desire_change,
-              previous_sentences, mental_health, drug_depabuse,
-              sentence_length, family_conflict)]
-
+              previous_sentences, sentence_length, total_months_in_prison,
+              mental_health, drug_depabuse, family_conflict)]
 
 # explore correlations
 cor(mdf[, .SD, .SDcols = sapply(mdf, is.numeric)], use = 'complete.obs')
+
+cor(mdf[, .(previous_sentences, total_months_in_prison, sentence_length)], use = 'complete.obs')
 
 cor(mdf[, .(self_efficacy, desire_change,
   family_conflict, mental_health)], use = 'complete.obs')
@@ -67,10 +68,10 @@ number_imputations = 20
 
 print('::::::: running imputations')
 imp = mice::mice(mdf, predictorMatrix = predM, m = number_imputations, maxit = 30,
-               method = impMethod,
-               imputationFunction = imputationFunction,
-               cluster_var = cluster_var,
-               print = FALSE)
+                 method = impMethod,
+                 imputationFunction = imputationFunction,
+                 cluster_var = cluster_var,
+                 print = FALSE)
 
 # explore quality of the imputation
 plot(imp)
@@ -83,7 +84,7 @@ if(!file.exists(file_model_0)) {
 
     print('::::::: running baseline model')
     plan(multiprocess)
-    m0 = brm_multiple(mvbind(money_family, living_with_family, temp_housing, spent_night, 
+    m0 = brm_multiple(mvbind(money_family, living_with_family, temp_housing, spent_night,
                       work_formal, work_informal, money_pp, contact_pp) ~
                       time,
                       data = imp,
@@ -93,10 +94,11 @@ if(!file.exists(file_model_0)) {
 
     saveRDS(m0, file = file_model_0)
 
-} else { m0 = readRDS(file_model_0) } 
+} else { m0 = readRDS(file_model_0) }
 
 check_convergence_mi(m0)
 
+# create vector with dependent variables
 depvars = c('moneyfamily', 'livingwithfamily', 'temphousing',
   'spentnight', 'workformal', 'workinformal', 'moneypp', 'contactpp')
 
@@ -117,6 +119,10 @@ fitted_values[, time := factor(time,
               levels = c(1:4),
               labels =c('Primera semana', 'Dos meses', 'Seis meses', 'Doce meses'))]
 
+# explore fitted values summary
+fitted_values
+
+# create labels for dependent variables
 cnames = c('Dinero familiares', 'Vive con familiares', 'Vivienda temporal', 'Noche en lugar de riesgo',
            'Trabajo formal', 'Trabajo informal', 'Dinero programas', 'Contacto instituciones')
 
@@ -154,7 +160,7 @@ for (i in seq_along(depvars_list)) {
   create_plots_outcome(depvars_list[[i]], names(depvars_list[i]))
 }
 
-# save model and remove object
+# remove object to clear memory
 remove(m0)
 
 # initial descriptive model (1)
@@ -164,12 +170,13 @@ file_model_1 = 'output/brms_model_1.rd'
 if(!file.exists(file_model_1)) {
     print('::::::: running model 1')
     plan(multiprocess)
-    m1 = brm_multiple(mvbind(money_family, living_with_family, temp_housing, 
+    m1 = brm_multiple(mvbind(money_family, living_with_family, temp_housing,
                       spent_night, work_formal, work_informal, money_pp, contact_pp) ~
                       time + age + nchildren + only_primary + previous_partner +
                       self_efficacy + desire_change + any_previous_work +
                       #  family_conflict +
-                      mental_health + drug_depabuse + previous_sentences + (1|p|reg_folio),
+                      mental_health + drug_depabuse + total_months_in_prison +
+                      previous_sentences + (1|p|reg_folio),
                       data = imp,
                       family = bernoulli(),
                       control = list(adapt_delta=0.95),
@@ -184,7 +191,7 @@ check_convergence_mi(m1, high = 1.1)
 # screenreg(m1, omit.coef = paste0(depvars[-1], collapse='|'),
 #   include.r2=TRUE)
 
-# variable map
+# create latex table model 1
 cmap = list('Intercept' = 'Constante',
             'time2' = 'Dos meses',
             'time3' = 'Seis meses',
@@ -203,7 +210,8 @@ cmap = list('Intercept' = 'Constante',
             'classClase3' = 'Clase 3',
             'crime' = 'Delito condena',
             'sentence_length' = 'Tiempo condena',
-            'previous_sentences' = 'Número de condenas previas')
+            'previous_sentences' = 'Número de condenas previas',
+            'total_months_in_prison' = 'Tiempo total en la cárcel (meses)')
 
 dep_regular_exp = c('^moneyfamily_', '^livingwithfamily_', '^temphousing_',
   '^spentnight_', '^workformal_', '^workinformal_',
@@ -218,7 +226,7 @@ tab = texreg(list_texreg,
           custom.coef.map = cmap,
           custom.model.names = cnames,
           groups = list('Ola (ref = primera semana)' = 2:4),
-          ci.test = 0,  #NULL
+          ci.test = NULL,
           float.pos = "htp",
           caption = paste0('Modelo Bayesiano multivariable (',
                            ndeps, ' variables dependientes)'),
@@ -264,17 +272,17 @@ marginal_plots = function(model, covariate, depvar_location,
         labs(x = paste0('\n', map_covariates[[covariate]]),
              y = paste0(names_depvars[depvar_location],'\n')) +
         scale_color_grey() +
-        scale_fill_grey() + 
-        theme(axis.text.x = element_text(size = 22), 
-              axis.text.y = element_text(size = 22), 
-              axis.title.x = element_text(size = 22), 
+        scale_fill_grey() +
+        theme(axis.text.x = element_text(size = 22),
+              axis.text.y = element_text(size = 22),
+              axis.title.x = element_text(size = 22),
               axis.title.y = element_text(size = 22))
     print(g)
   }
 
 # save marginal plots
 
-# new cmap 
+# new cmap for axis labels
 cmap = list('Intercept' = 'Constante',
             'time2' = 'Dos meses',
             'time3' = 'Seis meses',
@@ -293,72 +301,38 @@ cmap = list('Intercept' = 'Constante',
             'classClase3' = 'Clase 3',
             'crime' = 'Delito condena',
             'sentence_length' = 'Tiempo condena',
-            'previous_sentences' = 'Número de condenas previas')
+            'previous_sentences' = 'Número de condenas previas',
+            'total_months_in_prison' = 'Tiempo total en la cárcel (meses)')
 
-# dep_regular_exp = c('^moneyfamily_', '^livingwithfamily_', '^temphousing_',
-#   '^spentnight_', '^workformal_', '^workinformal_',
-#   '^moneypp_', '^contactpp_')
+output_index = c('moneyfamily',
+                 'livingwithfamily', 'livingwithfamily', 'livingwithfamily',
+                 'temphousing', 'temphousing',
+                 'spentnight', 'spentnight',
+                 'workformal', 'workformal', 'workformal',
+                 'workinformal', 'workinformal',
+                 'moneypp', 'moneypp',
+                 'contactpp')
 
-marginal_plots(m1, 'previous_sentences', 1,
-               cnames, cmap)
-ggsave('output/moneyfamily_previoussentences.pdf')
+variables_prediction = c('previous_sentences',
+                        'age', 'nchildren', 'mental_health',
+                        'drug_depabuse', 'previous_sentences',
+                        'mental_health', 'drug_depabuse',
+                        'age', 'self_efficacy', 'previous_sentences',
+                        'age', 'any_previous_work',
+                        'nchildren', 'total_months_in_prison',
+                        'drug_depabuse')
 
-marginal_plots(m1, 'age', 2,
-               cnames, cmap)
-ggsave('output/livingwithfamily_age.pdf')
+if (! length(output_index) == length(variables_prediction)) {
+  stop ('Number of outcome variables do not match predictors in marginal plots')
+}
 
-marginal_plots(m1, 'nchildren', 2,
-               cnames, cmap)
-ggsave('output/livingwithfamily_children.pdf')
+for (i in seq_along(output_index)) {
+    print(paste0(':::::::: plotting ', output_index[i], ' - ', variables_prediction[i]))
+    marginal_plots(m1, variables_prediction[i],  which(depvars == output_index[i]), cnames, cmap)
+    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'))
+}
 
-marginal_plots(m1, 'mental_health', 2,
-               cnames, cmap)
-ggsave('output/livingwithfamily_mentalhealth.pdf')
-
-marginal_plots(m1, 'drug_depabuse', 3,
-               cnames, cmap)
-ggsave('output/temphousing_drug.pdf')
-
-marginal_plots(m1, 'mental_health', 4,
-               cnames, cmap)
-ggsave('output/spentnight_mentalhealth.pdf')
-
-marginal_plots(m1, 'drug_depabuse', 4,
-               cnames, cmap)
-ggsave('output/spentnight_drug.pdf')
-
-marginal_plots(m1, 'previous_sentences', 5,
-               cnames, cmap)
-ggsave('output/workformal_previoussentence.pdf')
-
-marginal_plots(m1, 'previous_sentences', 5,
-               cnames, cmap)
-ggsave('output/workformal_previoussentence.pdf')
-
-marginal_plots(m1, 'age', 5,
-               cnames, cmap)
-ggsave('output/workformal_age.pdf')
-
-marginal_plots(m1, 'age', 6,
-               cnames, cmap)
-ggsave('output/workinformal_age.pdf')
-
-marginal_plots(m1, 'any_previous_work', 6,
-               cnames, cmap)
-ggsave('output/workinformal_anypreviouswork.pdf')
-
-marginal_plots(m1, 'previous_sentences', 6,
-               cnames, cmap)
-ggsave('output/worinformal_previoussentence.pdf')
-
-marginal_plots(m1, 'nchildren', 7,
-               cnames, cmap)
-ggsave('output/moneypp_children.pdf')
-
-marginal_plots(m1, 'drug_depabuse', 8,
-               cnames, cmap)
-ggsave('output/contactpp_drug.pdf')
-
+# remove model to clear memory
 remove(m1)
 
 # model with classes and some demographic controls (2)
@@ -369,7 +343,7 @@ if(!file.exists(file_model_2)) {
 
     print('::::::: running model 2')
     plan(multiprocess)
-    m2 = brm_multiple(mvbind(money_family, living_with_family, temp_housing, 
+    m2 = brm_multiple(mvbind(money_family, living_with_family, temp_housing,
                       spent_night, work_formal, work_informal, money_pp, contact_pp) ~
                       time + age + nchildren + only_primary + previous_partner +
                       class + (1|p|reg_folio),
@@ -389,22 +363,13 @@ list_texreg = create_texreg_multivariate(m2, dep_regular_exp,
 
 ndeps = length(dep_regular_exp)
 
-cmap = list('Intercept' = 'Constante',
-            'time2' = 'Dos meses',
-            'time3' = 'Seis meses',
-            'time4' = 'Doce meses',
-            'classClase2' = 'Clase 2',
-            'classClase3' = 'Clase 3')
-
-marginal_plots(m2, 'class', 1,
-               cnames, cmap)
-
+# create latex table model 2
 tab = texreg(list_texreg,
           custom.coef.map = cmap,
           custom.model.names = cnames,
           groups = list('Ola (ref = primera semana)' = 2:4,
                         'Perfil (ref = Clase 1)' = 5:6),
-          ci.test = 0,  #NULL
+          ci.test = NULL,
           float.pos = "htp",
           caption = paste0('Modelo Bayesiano multivariable (',
                            ndeps, ' variables dependientes)'),
@@ -440,7 +405,32 @@ top = "\\\\toprule
 \\\\midrule"
 
 tab = str_replace(tab, '\\\\toprule\\n.+\\n\\\\midrule', top)
-cat(tab,  file = 'output/integracion_social_m2.tex') 
+cat(tab,  file = 'output/integracion_social_m2.tex')
+
+# create marginal plots for classes
+cmap = list('Intercept' = 'Constante',
+            'time2' = 'Dos meses',
+            'time3' = 'Seis meses',
+            'time4' = 'Doce meses',
+            'classClase2' = 'Clase 2',
+            'classClase3' = 'Clase 3')
+
+output_index = c('temphousing',
+                 'spentnight',
+                 'workinformal',
+                 'contactpp')
+
+variables_prediction = c('class', 'class', 'class', 'class')
+
+if (! length(output_index) == length(variables_prediction)) {
+  stop ('Number of outcome variables do not match predictors in marginal plots')
+}
+
+for (i in seq_along(output_index)) {
+    print(paste0(':::::::: plotting ', output_index[i], ' - ', variables_prediction[i]))
+    marginal_plots(m2, variables_prediction[i],  which(depvars == output_index[i]), cnames, cmap)
+    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'))
+}
 
 remove(m2)
 
