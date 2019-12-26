@@ -1,6 +1,9 @@
 # texreg function for brms extraction
 library(texreg)
 
+# redefine defaults of base table function
+table = function (...) base::table(..., useNA = 'ifany')
+
 # general brms extract method
 extract.brms = function(model, include.r2 = TRUE, include.loo = FALSE, ...) {
     s = summary(model)

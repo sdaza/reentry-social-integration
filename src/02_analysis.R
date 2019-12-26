@@ -52,7 +52,7 @@ cor(mdf[, .(self_efficacy, desire_change,
 
 predM = mice::make.predictorMatrix(data = mdf)
 predM[, "reg_folio"] = -2
-impMethod = mice::make.method(data=mdf)
+impMethod = mice::make.method(data = mdf)
 l2vars = c('previous_sentences', 'family_conflict', 'self_efficacy')
 predM[l2vars, 'time'] = 0
 impMethod[l2vars] <- '2lonly.function'
@@ -124,7 +124,7 @@ fitted_values
 
 # create labels for dependent variables
 cnames = c('Dinero familiares', 'Vive con familiares', 'Vivienda temporal', 'Noche en lugar de riesgo',
-           'Trabajo formal', 'Trabajo informal', 'Dinero programas', 'Contacto instituciones')
+           'Trabajo formal', 'Trabajo informal', 'Subsidios', 'Contacto instituciones')
 
 fitted_values[, dep := factor(dep, labels = cnames, levels = depvars)]
 
@@ -250,12 +250,12 @@ top = "\\\\toprule
 \\\\addlinespace
 & \\\\multicolumn{2}{c}{Familia} &  \\\\multicolumn{2}{c}{Precariedad Residencial} &
 \\\\multicolumn{2}{c}{Trabajo} &
-\\\\multicolumn{2}{c}{Asistencia Pública} \\\\\\\\
+\\\\multicolumn{2}{c}{Ayuda Institucional} \\\\\\\\
 \\\\addlinespace
 \\\\addlinespace
 & \\\\multicolumn{1}{c}{Dinero familiares} & \\\\multicolumn{1}{c}{Vive con familiares} & \\\\multicolumn{1}{c}{Vivienda temporal} &
 \\\\multicolumn{1}{c}{Noche en lugar de riesgo} & \\\\multicolumn{1}{c}{Trabajo formal} &
-\\\\multicolumn{1}{c}{Trabajo informal} & \\\\multicolumn{1}{c}{Dinero programas} & \\\\multicolumn{1}{c}{Contacto instituciones} \\\\\\\\
+\\\\multicolumn{1}{c}{Trabajo informal} & \\\\multicolumn{1}{c}{Subsidios} & \\\\multicolumn{1}{c}{Contacto instituciones} \\\\\\\\
 \\\\addlinespace
 \\\\addlinespace
 \\\\midrule"
@@ -329,7 +329,8 @@ if (! length(output_index) == length(variables_prediction)) {
 for (i in seq_along(output_index)) {
     print(paste0(':::::::: plotting ', output_index[i], ' - ', variables_prediction[i]))
     marginal_plots(m1, variables_prediction[i],  which(depvars == output_index[i]), cnames, cmap)
-    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'))
+    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'),
+           width = 9, height = 6)
 }
 
 # remove model to clear memory
@@ -394,12 +395,12 @@ top = "\\\\toprule
 \\\\addlinespace
 & \\\\multicolumn{2}{c}{Familia} &  \\\\multicolumn{2}{c}{Precariedad Residencial} &
 \\\\multicolumn{2}{c}{Trabajo} &
-\\\\multicolumn{2}{c}{Asistencia Pública} \\\\\\\\
+\\\\multicolumn{2}{c}{Ayuda Institucional} \\\\\\\\
 \\\\addlinespace
 \\\\addlinespace
 & \\\\multicolumn{1}{c}{Dinero familiares} & \\\\multicolumn{1}{c}{Vive con familiares} & \\\\multicolumn{1}{c}{Vivienda temporal} &
 \\\\multicolumn{1}{c}{Noche en lugar de riesgo} & \\\\multicolumn{1}{c}{Trabajo formal} &
-\\\\multicolumn{1}{c}{Trabajo informal} & \\\\multicolumn{1}{c}{Dinero programas} & \\\\multicolumn{1}{c}{Contacto instituciones} \\\\\\\\
+\\\\multicolumn{1}{c}{Trabajo informal} & \\\\multicolumn{1}{c}{Subsidios} & \\\\multicolumn{1}{c}{Contacto instituciones} \\\\\\\\
 \\\\addlinespace
 \\\\addlinespace
 \\\\midrule"
@@ -429,7 +430,8 @@ if (! length(output_index) == length(variables_prediction)) {
 for (i in seq_along(output_index)) {
     print(paste0(':::::::: plotting ', output_index[i], ' - ', variables_prediction[i]))
     marginal_plots(m2, variables_prediction[i],  which(depvars == output_index[i]), cnames, cmap)
-    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'))
+    ggsave(paste0('output/', output_index[i], '_', gsub('_', '', variables_prediction[i]), '.pdf'),
+           width = 9, height = 6)
 }
 
 remove(m2)
