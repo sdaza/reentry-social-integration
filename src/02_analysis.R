@@ -20,6 +20,7 @@ source('src/utils.R')
 
 # load data
 df = readRDS('output/clean_data.rd')
+haven::write_dta(df, "output/long-format-data-social-inclusion-report.dta")
 names(df)
 
 fvars = c('edu', 'crime', 'time', 'class')

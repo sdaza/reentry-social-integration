@@ -74,9 +74,8 @@ setMethod("extract",
 
 
 # extract function that selects coefficients for multivariate models
-extract.brms.select_coeff = function(model, include.r2 = TRUE, include.loo = FALSE,
-                                     coeff_pattern = NULL,
-                                     iteration = NULL) {
+extract.brms.select_coeff = function(model, include.r2 = TRUE,
+    include.loo = FALSE, coeff_pattern = NULL, iteration = NULL) {
     s = summary(model)
 
     # fixed coefficients
